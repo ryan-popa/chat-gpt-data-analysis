@@ -42,14 +42,6 @@ def show_variables_for_debugging(ret):
         st.pyplot(pyplot_chart)
     else:
         st.write(last_value)
-        
-    
-        
-    # placeholder = st.empty()
-    # placeholder.text("Hello")
-    
-    # def show_variable(data):
-    #     placeholder.write("hey")
     
     k = st.selectbox("Variable", ret.keys())
     if k:
@@ -62,7 +54,9 @@ def show_variables_for_debugging(ret):
 if not api_key:
     st.error("OPENAI_API_KEY environmnet variable set")
     
-df = pd.read_csv("./titanic.csv")
+# TODO: replace with the ability to load dynamic datasets 
+dataset_name = st.selectbox("Select dataset", ["titanic.csv", ""])
+df = pd.read_csv(dataset_name)
 st.write(df)
 
 col = list(zip(df.columns, df.dtypes))
@@ -73,10 +67,14 @@ cols_description = ", ".join(list(map(format_column, col)))
 
 question = st.text_input(label="Your question")
 if st.button("Ask"):
-    question_with_context = "Considering a pandas dataframe with columns {} write code to {}".format(cols_description, question)
+    question_with_context = "Considering a pandas dataframe with columns {} write the python code to {}".format(cols_description, question)
     st.info(question_with_context)
     resp = openai.ask_chat_gpt_question(question_with_context, api_key)
-    execute_script(resp)
+    try:
+        execute_script(resp)
+    except Exception as ex:
+        st.error(ex)
+        st.code(resp)
     
 code_query = st.text_area(label="Code to run")
 previous_execution_vars = st.session_state.get("code_vars", {})

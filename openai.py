@@ -27,9 +27,13 @@ def _make_gpt_request(text, api_key):
     return r.text
 
 def _parse_gpt_response(r: str):
-    d = json.loads(r)
-    # st.code(d)
-    return (d["choices"][0]["text"], d["choices"][0]["finish_reason"])
+    try:
+        d = json.loads(r)
+        # st.code(d)
+        return (d["choices"][0]["text"], d["choices"][0]["finish_reason"])
+    except Exception as ex:
+        st.error(ex)
+        st.code(d)
 
 def ask_chat_gpt_question(question, api_key):
     try:
