@@ -1,3 +1,10 @@
 altair
 pandas
 streamlit
+matplotlib
+seaborn
+streamlit-aggrid
+pyarrow
+google-cloud
+google-cloud-storage
+numpy

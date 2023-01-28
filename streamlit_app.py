@@ -1,38 +1,88 @@
 from collections import namedtuple
 import altair as alt
-import math
 import pandas as pd
 import streamlit as st
+import os
+from cache.cache import cache_string
+import openai
+import matplotlib.pyplot as plt
+import seaborn
+import sys
+import numpy as np
 
-"""
-# Welcome to Streamlit!
+api_key = os.environ.get("OPENAI_API_KEY")
 
-Edit `/streamlit_app.py` to customize this app to your heart's desire :heart:
+def ask_chat_gpt(question):
+    return cache_string(question, lambda: openai.ask_chat_gpt_question(question, api_key), -1)
 
-If you have any questions, checkout our [documentation](https://docs.streamlit.io) and [community
-forums](https://discuss.streamlit.io).
+def execute_script(code):
+    ret = {}
 
-In the meantime, below is an example of what you can do with just a few lines of code:
-"""
+    with st.expander("Show code", True):
+        st.code(code)
+    
+    try:
+        exec(code, None, ret)
+    except Exception as ex:
+        st.error(ex)
+        
+    return ret
+       
+def show_variables_for_debugging(ret): 
+    pyplot_chart = None
+    last_value = None
+    for k, v in ret.items():
+        st.write(v)
+        if "pyplot" in str(v):
+            st.write("found pyplot")
+            pyplot_chart = v
+        last_value = v
+        
+    if pyplot_chart:
+        st.pyplot(pyplot_chart)
+    else:
+        st.write(last_value)
+        
+    
+        
+    # placeholder = st.empty()
+    # placeholder.text("Hello")
+    
+    # def show_variable(data):
+    #     placeholder.write("hey")
+    
+    k = st.selectbox("Variable", ret.keys())
+    if k:
+        st.write(ret[k])
+        
+    return ret
+    
+    
 
+if not api_key:
+    st.error("OPENAI_API_KEY environmnet variable set")
+    
+df = pd.read_csv("./titanic.csv")
+st.write(df)
 
-with st.echo(code_location='below'):
-    total_points = st.slider("Number of points in spiral", 1, 5000, 2000)
-    num_turns = st.slider("Number of turns in spiral", 1, 100, 9)
+col = list(zip(df.columns, df.dtypes))
+def format_column(tpl):
+    return "{}: {}".format(tpl[0], tpl[1])
 
-    Point = namedtuple('Point', 'x y')
-    data = []
+cols_description = ", ".join(list(map(format_column, col)))
 
-    points_per_turn = total_points / num_turns
+question = st.text_input(label="Your question")
+if st.button("Ask"):
+    question_with_context = "Considering a pandas dataframe with columns {} write code to {}".format(cols_description, question)
+    st.info(question_with_context)
+    resp = openai.ask_chat_gpt_question(question_with_context, api_key)
+    execute_script(resp)
+    
+code_query = st.text_area(label="Code to run")
+previous_execution_vars = st.session_state.get("code_vars", {})
+if st.button("Run"):
+    previous_execution_vars = execute_script(code_query)
+    st.session_state["code_vars"] = previous_execution_vars
 
-    for curr_point_num in range(total_points):
-        curr_turn, i = divmod(curr_point_num, points_per_turn)
-        angle = (curr_turn + 1) * 2 * math.pi * i / points_per_turn
-        radius = curr_point_num / total_points
-        x = radius * math.cos(angle)
-        y = radius * math.sin(angle)
-        data.append(Point(x, y))
-
-    st.altair_chart(alt.Chart(pd.DataFrame(data), height=500, width=500)
-        .mark_circle(color='#0068c9', opacity=0.5)
-        .encode(x='x:Q', y='y:Q'))
+if previous_execution_vars:
+    show_variables_for_debugging(previous_execution_vars)
